@@ -1,0 +1,24 @@
+# Dependencies
+node_modules/
+
+# Build output
+.next/
+out/
+
+# Firebase
+.firebase/
+
+# TypeScript
+tsconfig.tsbuildinfo
+
+# Env files
+.env*.local
+
+# macOS
+.DS_Store
+
+# Logs
+*.log
+
+# Claude Code (local config only)
+.claude/
