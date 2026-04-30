@@ -22,25 +22,23 @@ export function Toggle({
       aria-checked={value}
       aria-labelledby={labelId}
       onClick={() => onChange(!value)}
-      className="inline-flex shrink-0 items-center gap-2 text-xs"
+      className="inline-flex shrink-0 items-center gap-2"
     >
-      {/* Track */}
+      {/* Track — always left-to-right regardless of text direction */}
       <span
-        className={`relative flex h-6 w-11 items-center rounded-full border transition-all duration-200 ease-expo ${
+        className={`relative h-6 w-11 shrink-0 rounded-full border transition-colors duration-200 ${
           value
             ? "border-primary bg-primary"
             : "border-border-strong bg-fg-subtle/20"
         }`}
+        style={{ direction: "ltr" }}
       >
-        {/* Knob */}
+        {/* Knob — anchored to left edge so translateX is always RTL-safe */}
         <span
-          className={`absolute h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-all duration-200 ease-expo ${
-            value
-              ? "translate-x-[22px] rtl:-translate-x-[22px]"
-              : "translate-x-[2px] rtl:translate-x-[2px] rtl:-translate-x-[2px]"
-          }`}
+          className="absolute top-[3px] h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform duration-200 ease-expo"
           style={{
-            transform: value ? "translateX(22px)" : "translateX(2px)",
+            left: 0,
+            transform: value ? "translateX(22px)" : "translateX(3px)",
           }}
         />
       </span>
