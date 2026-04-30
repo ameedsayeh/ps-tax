@@ -54,6 +54,9 @@ export const metadata: Metadata = {
   },
   robots: { index: true, follow: true },
   alternates: { canonical: "https://ps-tax.web.app" },
+  verification: {
+    google: "VRWdjBxWAVyVE4aJ62ndV5RuHM74x6KRPvNu3UzLBQ8",
+  },
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
