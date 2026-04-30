@@ -7,11 +7,13 @@ export function Toggle({
   onChange,
   t,
   labelId,
+  showLabel = true,
 }: {
   value: boolean;
   onChange: (v: boolean) => void;
   t: Dict;
   labelId?: string;
+  showLabel?: boolean;
 }) {
   return (
     <button
@@ -20,28 +22,37 @@ export function Toggle({
       aria-checked={value}
       aria-labelledby={labelId}
       onClick={() => onChange(!value)}
-      className="group inline-flex items-center gap-3 text-xs"
+      className="inline-flex shrink-0 items-center gap-2 text-xs"
     >
+      {/* Track */}
       <span
-        className={`relative flex h-6 w-11 items-center rounded-full border transition-all duration-300 ease-expo ${
+        className={`relative flex h-6 w-11 items-center rounded-full border transition-all duration-200 ease-expo ${
           value
-            ? "border-accent/50 bg-accent shadow-[0_0_20px_rgba(94,106,210,0.45)]"
-            : "border-white/10 bg-white/[0.06]"
-        } ${value ? "justify-end" : "justify-start"}`}
-      >
-        <span
-          className={`mx-0.5 h-5 w-5 rounded-full shadow-[0_1px_2px_rgba(0,0,0,0.4)] transition-all duration-300 ease-expo ${
-            value ? "bg-white" : "bg-white/70"
-          }`}
-        />
-      </span>
-      <span
-        className={`font-mono text-[10px] uppercase tracking-[0.2em] transition-colors ${
-          value ? "text-fg" : "text-fg-muted"
+            ? "border-primary bg-primary"
+            : "border-border-strong bg-fg-subtle/20"
         }`}
       >
-        {value ? t.enabled : t.disabled}
+        {/* Knob */}
+        <span
+          className={`absolute h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-all duration-200 ease-expo ${
+            value
+              ? "translate-x-[22px] rtl:-translate-x-[22px]"
+              : "translate-x-[2px] rtl:translate-x-[2px] rtl:-translate-x-[2px]"
+          }`}
+          style={{
+            transform: value ? "translateX(22px)" : "translateX(2px)",
+          }}
+        />
       </span>
+      {showLabel && (
+        <span
+          className={`text-xs font-medium transition-colors ${
+            value ? "text-primary" : "text-fg-muted"
+          }`}
+        >
+          {value ? t.enabled : t.disabled}
+        </span>
+      )}
     </button>
   );
 }

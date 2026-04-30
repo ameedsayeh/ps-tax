@@ -1,8 +1,66 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import type { Currency, MoneyInput, Period } from "@/lib/tax";
 import type { Dict } from "@/lib/i18n";
-import { FieldLabel } from "./Field";
+
+const ALL_CURRENCIES: Currency[] = ["ILS", "USD", "JOD"];
+
+/** String-state input that lets users freely delete digits without fighting a controlled number. */
+function AmountInput({
+  id,
+  value,
+  onChange,
+  disabled,
+}: {
+  id: string;
+  value: number;
+  onChange: (v: number) => void;
+  disabled?: boolean;
+}) {
+  const [str, setStr] = useState(value === 0 ? "" : String(value));
+
+  // Sync string when the external value changes (e.g. reset)
+  useEffect(() => {
+    const parsed = parseFloat(str);
+    const externalIsZero = value === 0;
+    const localMatchesExternal = !isNaN(parsed) && parsed === value;
+    if (!localMatchesExternal && !(externalIsZero && (str === "" || str === "0"))) {
+      setStr(value === 0 ? "" : String(value));
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [value]);
+
+  return (
+    <input
+      id={id}
+      type="text"
+      inputMode="decimal"
+      value={str}
+      disabled={disabled}
+      placeholder="0"
+      onChange={(e) => {
+        let raw = e.target.value.replace(/[^\d.]/g, "");
+
+        // Strip leading zeros (e.g. "06000" → "6000"), but keep "0" and "0.x"
+        if (raw.length > 1 && raw.startsWith("0") && !raw.startsWith("0.")) {
+          raw = raw.replace(/^0+/, "") || "0";
+        }
+
+        // Allow only one decimal point
+        const dotIdx = raw.indexOf(".");
+        if (dotIdx !== -1) {
+          raw = raw.slice(0, dotIdx + 1) + raw.slice(dotIdx + 1).replace(/\./g, "");
+        }
+
+        setStr(raw);
+        const n = raw === "" ? 0 : parseFloat(raw);
+        onChange(isNaN(n) ? 0 : n);
+      }}
+      className="w-full bg-transparent text-2xl font-bold tracking-tight text-fg outline-none placeholder:text-fg-subtle"
+    />
+  );
+}
 
 type Props = {
   id: string;
@@ -13,8 +71,6 @@ type Props = {
   allowedCurrencies?: Currency[];
 };
 
-const ALL_CURRENCIES: Currency[] = ["ILS", "USD", "JOD"];
-
 export function MoneyInputRow({
   id,
   value,
@@ -23,81 +79,78 @@ export function MoneyInputRow({
   disabled,
   allowedCurrencies = ALL_CURRENCIES,
 }: Props) {
-  const dimmed = disabled ? "opacity-40 pointer-events-none" : "";
-
   return (
     <div
-      className={`rounded-2xl border border-white/[0.06] bg-gradient-to-b from-white/[0.05] to-white/[0.01] shadow-inset-highlight transition-all duration-300 ease-expo focus-within:border-accent/40 focus-within:shadow-[0_0_0_4px_rgba(94,106,210,0.10),inset_0_1px_0_0_rgba(255,255,255,0.10)] ${dimmed}`}
+      className={`grid grid-cols-1 gap-3 sm:grid-cols-3 ${
+        disabled ? "pointer-events-none opacity-40" : ""
+      }`}
     >
-      <div className="grid grid-cols-1 md:grid-cols-12">
-        {/* Amount */}
-        <div className="p-5 md:col-span-6 md:p-6 md:border-e md:border-white/[0.06]">
-          <FieldLabel htmlFor={`${id}-amount`}>{t.amount}</FieldLabel>
-          <input
+      {/* Amount */}
+      <div className="sm:col-span-1">
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-fg-muted">
+          {t.amount}
+        </p>
+        <div className="rounded-xl border border-border bg-bg px-4 py-3 transition-all focus-within:border-primary focus-within:shadow-input-focus">
+          <AmountInput
             id={`${id}-amount`}
-            type="number"
-            inputMode="decimal"
-            value={Number.isFinite(value.amount) ? value.amount : 0}
-            min={0}
-            step="any"
+            value={value.amount}
+            onChange={(v) => onChange({ ...value, amount: v })}
             disabled={disabled}
-            onChange={(e) => {
-              const raw = e.target.value;
-              const n = raw === "" ? 0 : Number(raw);
-              onChange({ ...value, amount: Number.isNaN(n) ? 0 : n });
-            }}
-            className="mt-3 w-full bg-transparent text-3xl font-semibold tracking-tight text-fg outline-none placeholder:text-fg-muted/60 md:text-4xl"
           />
         </div>
+      </div>
 
-        {/* Currency */}
-        <div className="p-5 md:col-span-3 md:p-6 md:border-e md:border-white/[0.06] border-t border-white/[0.06] md:border-t-0">
-          <FieldLabel>{t.currency}</FieldLabel>
-          <div className="mt-3 inline-flex rounded-lg border border-white/10 bg-black/30 p-0.5">
-            {allowedCurrencies.map((c) => {
-              const active = value.currency === c;
-              return (
-                <button
-                  key={c}
-                  type="button"
-                  disabled={disabled}
-                  onClick={() => onChange({ ...value, currency: c })}
-                  className={`rounded-md px-3 py-1.5 font-mono text-xs transition-all duration-200 ease-expo ${
-                    active
-                      ? "bg-accent text-white shadow-[0_1px_0_0_rgba(255,255,255,0.15)_inset,0_2px_8px_rgba(94,106,210,0.35)]"
-                      : "text-fg-muted hover:text-fg hover:bg-white/[0.06]"
-                  }`}
-                >
-                  {c}
-                </button>
-              );
-            })}
-          </div>
+      {/* Currency */}
+      <div>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-fg-muted">
+          {t.currency}
+        </p>
+        <div className="flex h-[52px] rounded-xl border border-border bg-bg p-1">
+          {allowedCurrencies.map((c) => {
+            const active = value.currency === c;
+            return (
+              <button
+                key={c}
+                type="button"
+                disabled={disabled}
+                onClick={() => onChange({ ...value, currency: c })}
+                className={`flex-1 rounded-lg text-xs font-bold transition-all duration-150 ${
+                  active
+                    ? "bg-primary text-white shadow-btn-primary"
+                    : "text-fg-muted hover:bg-fg-subtle/10 hover:text-fg"
+                }`}
+              >
+                {c}
+              </button>
+            );
+          })}
         </div>
+      </div>
 
-        {/* Period */}
-        <div className="p-5 md:col-span-3 md:p-6 border-t border-white/[0.06] md:border-t-0">
-          <FieldLabel>{t.period}</FieldLabel>
-          <div className="mt-3 inline-flex rounded-lg border border-white/10 bg-black/30 p-0.5">
-            {(["monthly", "annually"] as Period[]).map((p) => {
-              const active = value.period === p;
-              return (
-                <button
-                  key={p}
-                  type="button"
-                  disabled={disabled}
-                  onClick={() => onChange({ ...value, period: p })}
-                  className={`rounded-md px-3 py-1.5 font-mono text-[10px] uppercase tracking-widest transition-all duration-200 ease-expo ${
-                    active
-                      ? "bg-accent text-white shadow-[0_1px_0_0_rgba(255,255,255,0.15)_inset,0_2px_8px_rgba(94,106,210,0.35)]"
-                      : "text-fg-muted hover:text-fg hover:bg-white/[0.06]"
-                  }`}
-                >
-                  {p === "monthly" ? t.monthly : t.annually}
-                </button>
-              );
-            })}
-          </div>
+      {/* Period */}
+      <div>
+        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-fg-muted">
+          {t.period}
+        </p>
+        <div className="flex h-[52px] rounded-xl border border-border bg-bg p-1">
+          {(["monthly", "annually"] as Period[]).map((p) => {
+            const active = value.period === p;
+            return (
+              <button
+                key={p}
+                type="button"
+                disabled={disabled}
+                onClick={() => onChange({ ...value, period: p })}
+                className={`flex-1 rounded-lg text-xs font-bold transition-all duration-150 ${
+                  active
+                    ? "bg-primary text-white shadow-btn-primary"
+                    : "text-fg-muted hover:bg-fg-subtle/10 hover:text-fg"
+                }`}
+              >
+                {p === "monthly" ? t.monthly : t.annually}
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>
