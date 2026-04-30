@@ -89,6 +89,10 @@ export type Dict = {
   footerNote: string;
   footerDisclaimer: string;
 
+  // Navigation
+  back: string;
+  next: string;
+
   // Reset
   reset: string;
   calculate: string;
@@ -109,8 +113,8 @@ const en: Dict = {
   sectionSalary: "Salary",
   sectionTransport: "Transportation",
   sectionExemptions: "Exemptions",
-  sectionRates: "Exchange",
-  sectionBreakdown: "The Breakdown",
+  sectionRates: "Exchange Rates",
+  sectionBreakdown: "Results",
 
   amount: "Amount",
   currency: "Currency",
@@ -124,7 +128,7 @@ const en: Dict = {
   transportType: "Method",
   transportPercent: "10% of salary",
   transportFixed: "Fixed amount",
-  transportPercentHint: "Ten percent or fixed amount of the gross salary is deducted.",
+  transportPercentHint: "Ten percent of the gross salary is deducted as transportation.",
 
   personalExemption: "Personal Exemption",
   personalExemptionHint: "Fixed at 36,000 ILS annually. Applied automatically.",
@@ -137,16 +141,16 @@ const en: Dict = {
   collegeExemption: "College Exemption",
   loansExemption: "Loans Exemption",
 
-  enabled: "Enabled",
-  disabled: "Disabled",
+  enabled: "On",
+  disabled: "Off",
 
   ratesHint:
     "All tax math runs in Israeli Shekels. Override these, or fetch the latest.",
-  fetchRates: "Fetch latest rates",
+  fetchRates: "Fetch live rates",
   fetching: "Fetching…",
-  rateUsdIls: "1 USD in ILS",
-  rateJodIls: "1 JOD in ILS",
-  ratesFetchedAt: "Fetched",
+  rateUsdIls: "1 USD → ILS",
+  rateJodIls: "1 JOD → ILS",
+  ratesFetchedAt: "Updated",
   ratesFailed: "Could not reach the rates service. Defaults applied.",
   useCustomRates: "Use my own rates",
 
@@ -157,12 +161,12 @@ const en: Dict = {
   breakdownBracket1: "Bracket I",
   breakdownBracket2: "Bracket II",
   breakdownBracket3: "Bracket III",
-  breakdownBracketLabel: "Bracket",
+  breakdownBracketLabel: "Tax Brackets",
   breakdownTotalTax: "Total tax",
   breakdownNet: "Take-home",
   breakdownEffectiveRate: "Effective rate",
-  perMonth: "per month",
-  perYear: "per year",
+  perMonth: "/ month",
+  perYear: "/ year",
 
   bracket1Range: "0 – 75,000 ILS · 5%",
   bracket2Range: "75,000 – 150,000 ILS · 10%",
@@ -170,7 +174,10 @@ const en: Dict = {
 
   footerNote: "A precise, minimal tool for thinking clearly about your income.",
   footerDisclaimer:
-    "An educational tool. Figures are indicative. For official matters consult a certified tax professional in Palestine.",
+    "Educational tool. Figures are indicative. For official matters consult a certified tax professional in Palestine.",
+
+  back: "Back",
+  next: "Next",
 
   reset: "Reset",
   calculate: "Recalculate",
@@ -192,7 +199,7 @@ const ar: Dict = {
   sectionTransport: "المواصلات",
   sectionExemptions: "الإعفاءات",
   sectionRates: "أسعار الصرف",
-  sectionBreakdown: "التفصيل",
+  sectionBreakdown: "النتائج",
 
   amount: "المبلغ",
   currency: "العملة",
@@ -204,14 +211,14 @@ const ar: Dict = {
     "راتبك الإجمالي قبل أي اقتطاعات. اختر العملة والدورة التي تفكر بها.",
 
   transportType: "الطريقة",
-  transportPercent: "١٠٪ من الراتب",
+  transportPercent: "10% من الراتب",
   transportFixed: "مبلغ ثابت",
-  transportPercentHint: "يخصم عشرة بالمئة أو مبلغ ثابت من إجمالي الراتب.",
+  transportPercentHint: "يخصم 10% من إجمالي الراتب كبدل مواصلات.",
 
   personalExemption: "الإعفاء الشخصي",
-  personalExemptionHint: "ثابت ٣٦٬٠٠٠ شيكل سنوياً. يُطبَّق تلقائياً.",
+  personalExemptionHint: "ثابت 36,000 شيكل سنوياً. يُطبَّق تلقائياً.",
   housingExemption: "إعفاء السكن",
-  housingExemptionHint: "٣٠٬٠٠٠ شيكل لعامٍ واحد. فعّله للتطبيق.",
+  housingExemptionHint: "30,000 شيكل لعامٍ واحد. فعّله للتطبيق.",
 
   parentsExemption: "إعفاء الوالدين",
   otherExemption: "إعفاءات أخرى",
@@ -219,15 +226,15 @@ const ar: Dict = {
   collegeExemption: "إعفاء الكلية",
   loansExemption: "إعفاء القروض",
 
-  enabled: "مُفعَّل",
-  disabled: "معطَّل",
+  enabled: "مفعّل",
+  disabled: "معطّل",
 
   ratesHint:
     "كل العمليات تحسب بالشيكل. يمكنك تعديل الأسعار أو جلب آخر القيم.",
   fetchRates: "جلب آخر الأسعار",
   fetching: "جاري الجلب…",
-  rateUsdIls: "١ دولار بالشيكل",
-  rateJodIls: "١ دينار بالشيكل",
+  rateUsdIls: "1 دولار → شيكل",
+  rateJodIls: "1 دينار → شيكل",
   ratesFetchedAt: "آخر تحديث",
   ratesFailed: "تعذر الوصول إلى خدمة الأسعار. تم تطبيق القيم الافتراضية.",
   useCustomRates: "استخدم أسعاري",
@@ -239,20 +246,23 @@ const ar: Dict = {
   breakdownBracket1: "الشريحة الأولى",
   breakdownBracket2: "الشريحة الثانية",
   breakdownBracket3: "الشريحة الثالثة",
-  breakdownBracketLabel: "الشريحة",
+  breakdownBracketLabel: "الشرائح الضريبية",
   breakdownTotalTax: "إجمالي الضريبة",
   breakdownNet: "الصافي",
   breakdownEffectiveRate: "المعدل الفعلي",
-  perMonth: "في الشهر",
-  perYear: "في السنة",
+  perMonth: "/ شهر",
+  perYear: "/ سنة",
 
-  bracket1Range: "٠ – ٧٥٬٠٠٠ شيكل · ٥٪",
-  bracket2Range: "٧٥٬٠٠٠ – ١٥٠٬٠٠٠ شيكل · ١٠٪",
-  bracket3Range: "١٥٠٬٠٠٠+ شيكل · ١٥٪",
+  bracket1Range: "0 – 75,000 شيكل · 5%",
+  bracket2Range: "75,000 – 150,000 شيكل · 10%",
+  bracket3Range: "150,000+ شيكل · 15%",
 
   footerNote: "أداةٌ دقيقة ومُكثَّفة للتفكير بوضوحٍ حول دخلك.",
   footerDisclaimer:
     "أداة تعليمية. الأرقام استرشادية. للأمور الرسمية يُرجى استشارة مختص ضرائب معتمد في فلسطين.",
+
+  back: "رجوع",
+  next: "التالي",
 
   reset: "إعادة تعيين",
   calculate: "أعد الحساب",
