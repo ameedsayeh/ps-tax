@@ -103,8 +103,9 @@ export function Calculator() {
     }));
   }
 
+  // Preserve locale on reset
   function reset() {
-    setState(DEFAULT_STATE);
+    setState((s) => ({ ...DEFAULT_STATE, locale: s.locale }));
     setStep(1);
   }
 
@@ -160,7 +161,7 @@ export function Calculator() {
                   state.locale,
                 )}
               </span>
-              <span className="text-xs text-fg-subtle">
+              <span className="hidden text-xs text-fg-subtle sm:inline">
                 · {formatPercent(breakdown.effectiveRate, state.locale)}
               </span>
             </div>
@@ -173,18 +174,17 @@ export function Calculator() {
         <StepIndicator current={step} labels={stepLabels} />
 
         {/* ── Step card ── */}
-        <div className="mt-5 rounded-2xl border border-border bg-bg-card shadow-card">
-          {/* Step title */}
-          <div className="border-b border-border px-5 py-4">
+        <div className="mt-5 overflow-hidden rounded-2xl border border-border bg-bg-card shadow-card">
+          {/* Step title bar */}
+          <div className="border-b border-border bg-bg px-5 py-3.5">
             <p className="text-[11px] font-semibold uppercase tracking-widest text-primary">
-              {t.sectionSalary === stepLabels[step - 1]
-                ? `Step ${step} of 3`
-                : `Step ${step} of 3`}
+              Step {step} of 3
             </p>
             <h2 className="mt-0.5 text-lg font-bold text-fg">{stepLabels[step - 1]}</h2>
           </div>
 
-          <div className="p-5">
+          {/* Animated step content */}
+          <div key={step} className="animate-fade-up p-5">
             {step === 1 && (
               <StepIncome state={state} setState={setState} t={t} />
             )}
@@ -228,27 +228,35 @@ export function Calculator() {
             <div />
           )}
 
-          {step < 3 ? (
-            <button
-              type="button"
-              onClick={() => setStep((s) => s + 1)}
-              className="rounded-xl bg-primary px-7 py-2.5 text-sm font-semibold text-white shadow-btn-primary transition-all hover:bg-primary-dark active:scale-[0.98]"
-            >
-              {t.next} →
-            </button>
-          ) : (
-            <button
-              type="button"
-              onClick={() => setStep(1)}
-              className="rounded-xl border border-border px-5 py-2.5 text-sm font-semibold text-fg-muted transition-all hover:border-border-strong hover:text-fg"
-            >
-              ← {t.calculate}
-            </button>
-          )}
+          <div className="flex items-center gap-2">
+            {step === 3 && <ShareButton t={t} />}
+
+            {step < 3 ? (
+              <button
+                type="button"
+                onClick={() => setStep((s) => s + 1)}
+                className="rounded-xl bg-primary px-7 py-2.5 text-sm font-semibold text-white shadow-btn-primary transition-all hover:bg-primary-dark active:scale-[0.98]"
+              >
+                {t.next} →
+              </button>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setStep(1)}
+                className="rounded-xl border border-border px-5 py-2.5 text-sm font-semibold text-fg-muted transition-all hover:border-border-strong hover:text-fg"
+              >
+                ← {t.calculate}
+              </button>
+            )}
+          </div>
         </div>
 
         {/* ── Footer ── */}
         <footer className="mt-10 border-t border-border pt-5 text-center">
+          <div className="mb-2 flex items-center justify-center gap-1.5">
+            <span className="text-base">🇵🇸</span>
+            <span className="text-xs font-semibold text-fg-muted">Palestine Income Tax Calculator</span>
+          </div>
           <p className="text-xs leading-relaxed text-fg-subtle">{t.footerDisclaimer}</p>
         </footer>
       </main>
@@ -285,7 +293,10 @@ function StepIncome({
       {/* Transportation */}
       <div>
         <p className="mb-1 text-sm font-semibold text-fg">{t.sectionTransport}</p>
-        <p className="mb-3 text-xs text-fg-muted">{t.transportPercentHint}</p>
+        {/* Dynamic hint based on selected mode */}
+        <p className="mb-3 text-xs text-fg-muted">
+          {state.transportMode === "percent" ? t.transportPercentHint : t.transportFixedHint}
+        </p>
 
         {/* Mode selector */}
         <div className="mb-4 inline-flex rounded-lg border border-border bg-bg p-1">
@@ -349,16 +360,16 @@ function StepExemptions({
 }) {
   return (
     <div className="space-y-3">
-      {/* Personal (auto) */}
+      {/* Personal (auto, always on) */}
       <div className="flex items-center justify-between rounded-xl border border-success/30 bg-success-light/40 px-4 py-3">
         <div>
           <p className="text-sm font-semibold text-fg">{t.personalExemption}</p>
           <p className="text-xs text-fg-muted">{t.personalExemptionHint}</p>
         </div>
-        <span className="text-sm font-bold text-success">₪ 36,000</span>
+        <span className="shrink-0 text-sm font-bold text-success">₪ 36,000</span>
       </div>
 
-      {/* Housing (fixed amount, just a toggle) */}
+      {/* Housing — fixed amount, toggle only */}
       <div
         className={`flex items-center justify-between rounded-xl border px-4 py-3 transition-all duration-200 ${
           state.housing
@@ -366,15 +377,15 @@ function StepExemptions({
             : "border-border bg-bg-card"
         }`}
       >
-        <div>
+        <div className="min-w-0">
           <p id="housing-label" className="text-sm font-semibold text-fg">
             {t.housingExemption}
           </p>
           <p className="text-xs text-fg-muted">{t.housingExemptionHint}</p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="ms-3 flex shrink-0 items-center gap-3">
           <span
-            className={`text-sm font-bold ${
+            className={`text-sm font-bold transition-colors ${
               state.housing ? "text-primary" : "text-fg-subtle"
             }`}
           >
@@ -390,7 +401,7 @@ function StepExemptions({
         </div>
       </div>
 
-      {/* Optional exemptions */}
+      {/* Variable optional exemptions */}
       <ExemptionRow
         id="parents"
         title={t.parentsExemption}
@@ -437,15 +448,15 @@ function StepExemptions({
         t={t}
       />
 
-      {/* Exchange rates (collapsible) */}
+      {/* Exchange rates — collapsible */}
       <div className="rounded-xl border border-border bg-bg-card">
         <button
           type="button"
           onClick={() => setShowRates(!showRates)}
-          className="flex w-full items-center justify-between px-4 py-3 text-sm font-semibold text-fg"
+          className="flex w-full items-center justify-between px-4 py-3"
         >
-          <span>{t.sectionRates}</span>
-          <span className="text-fg-muted">{showRates ? "▲" : "▼"}</span>
+          <span className="text-sm font-semibold text-fg">{t.sectionRates}</span>
+          <span className="text-xs text-fg-muted">{showRates ? "▲" : "▼"}</span>
         </button>
         {showRates && (
           <div className="border-t border-border px-4 pb-4 pt-3">
@@ -462,6 +473,49 @@ function StepExemptions({
         )}
       </div>
     </div>
+  );
+}
+
+/* ── Share button ── */
+function ShareButton({ t }: { t: Dict }) {
+  const [copied, setCopied] = useState(false);
+
+  async function share() {
+    const url = "https://ps-tax.web.app";
+    const title = "Palestine Income Tax Calculator";
+    const text = "Calculate your Palestinian income tax — free, bilingual, ILS/USD/JOD.";
+
+    if (typeof navigator !== "undefined" && navigator.share) {
+      try {
+        await navigator.share({ title, text, url });
+        return;
+      } catch { /* user cancelled or not supported */ }
+    }
+
+    // Fallback: clipboard
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    } catch { /* ignore */ }
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={share}
+      className={`inline-flex items-center gap-1.5 rounded-xl border px-4 py-2.5 text-sm font-semibold transition-all ${
+        copied
+          ? "border-success/40 bg-success-light text-success"
+          : "border-border text-fg-muted hover:border-border-strong hover:text-fg"
+      }`}
+    >
+      {copied ? (
+        <>✓ {t.copied}</>
+      ) : (
+        <>↗ {t.share}</>
+      )}
+    </button>
   );
 }
 
@@ -483,12 +537,12 @@ function StepIndicator({
           <div key={i} className="flex items-center">
             <div className="flex flex-col items-center gap-1">
               <div
-                className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all ${
+                className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all duration-300 ${
                   done
                     ? "bg-primary text-white"
                     : active
                     ? "bg-primary text-white ring-4 ring-primary/20"
-                    : "border-2 border-border-strong text-fg-muted"
+                    : "border-2 border-border-strong text-fg-muted bg-bg-card"
                 }`}
               >
                 {done ? "✓" : n}
@@ -503,7 +557,7 @@ function StepIndicator({
             </div>
             {i < labels.length - 1 && (
               <div
-                className={`mx-2 mb-5 h-px w-10 transition-colors sm:w-16 ${
+                className={`mx-2 mb-5 h-0.5 w-10 rounded-full transition-all duration-500 sm:w-16 ${
                   done ? "bg-primary" : "bg-border-strong"
                 }`}
               />
@@ -518,11 +572,16 @@ function StepIndicator({
 /* ── Logo ── */
 function Logo() {
   return (
-    <div className="flex items-center gap-2">
-      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-xs font-extrabold text-white shadow-btn-primary">
-        PS
-      </span>
-      <span className="text-sm font-extrabold tracking-tight text-fg">TAX</span>
+    <div className="flex items-center gap-2.5">
+      <span className="text-2xl leading-none">🇵🇸</span>
+      <div>
+        <p className="text-sm font-extrabold leading-tight tracking-tight text-fg">
+          Palestine Income Tax
+        </p>
+        <p className="text-[10px] font-medium leading-tight tracking-widest text-fg-muted uppercase">
+          Calculator
+        </p>
+      </div>
     </div>
   );
 }
