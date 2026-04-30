@@ -4,7 +4,6 @@ import type { MoneyInput } from "@/lib/tax";
 import type { Dict } from "@/lib/i18n";
 import { MoneyInputRow } from "./ui/MoneyInputRow";
 import { Toggle } from "./ui/Toggle";
-import { SpotlightCard } from "./ui/SpotlightCard";
 
 type Props = {
   id: string;
@@ -28,28 +27,41 @@ export function ExemptionRow({
   t,
 }: Props) {
   return (
-    <SpotlightCard className={`p-6 md:p-7 ${enabled ? "" : "opacity-80"}`}>
-      <div className="mb-5 flex flex-wrap items-start justify-between gap-4">
+    <div
+      className={`rounded-xl border transition-all duration-200 ${
+        enabled
+          ? "border-primary/30 bg-primary-light/20"
+          : "border-border bg-bg-card"
+      }`}
+    >
+      <div className="flex items-center justify-between gap-4 px-4 py-3">
         <div className="min-w-0">
-          <h3
-            id={`${id}-label`}
-            className="text-lg font-semibold tracking-tight text-fg md:text-xl"
-          >
+          <p id={`${id}-label`} className="text-sm font-semibold text-fg">
             {title}
-          </h3>
+          </p>
           {description && (
-            <p className="mt-1 text-sm text-fg-muted">{description}</p>
+            <p className="mt-0.5 text-xs text-fg-muted">{description}</p>
           )}
         </div>
-        <Toggle value={enabled} onChange={onToggle} t={t} labelId={`${id}-label`} />
+        <Toggle
+          value={enabled}
+          onChange={onToggle}
+          t={t}
+          labelId={`${id}-label`}
+          showLabel={false}
+        />
       </div>
-      <MoneyInputRow
-        id={id}
-        value={value}
-        onChange={onChange}
-        t={t}
-        disabled={!enabled}
-      />
-    </SpotlightCard>
+
+      {enabled && (
+        <div className="border-t border-primary/20 px-4 pb-4 pt-3">
+          <MoneyInputRow
+            id={id}
+            value={value}
+            onChange={onChange}
+            t={t}
+          />
+        </div>
+      )}
+    </div>
   );
 }
