@@ -37,6 +37,7 @@ export type Dict = {
   transportPercent: string;
   transportFixed: string;
   transportPercentHint: string;
+  transportFixedHint: string;
 
   // Exemptions (fixed)
   personalExemption: string;
@@ -79,6 +80,7 @@ export type Dict = {
   breakdownEffectiveRate: string;
   perMonth: string;
   perYear: string;
+  ofTotalTax: string;
 
   // Bracket descriptions
   bracket1Range: string;
@@ -92,6 +94,10 @@ export type Dict = {
   // Navigation
   back: string;
   next: string;
+
+  // Share
+  share: string;
+  copied: string;
 
   // Reset
   reset: string;
@@ -128,7 +134,8 @@ const en: Dict = {
   transportType: "Method",
   transportPercent: "10% of salary",
   transportFixed: "Fixed amount",
-  transportPercentHint: "Ten percent of the gross salary is deducted as transportation.",
+  transportPercentHint: "10% of your gross salary will be deducted as transportation.",
+  transportFixedHint: "A fixed amount will be deducted as transportation allowance.",
 
   personalExemption: "Personal Exemption",
   personalExemptionHint: "Fixed at 36,000 ILS annually. Applied automatically.",
@@ -167,6 +174,7 @@ const en: Dict = {
   breakdownEffectiveRate: "Effective rate",
   perMonth: "/ month",
   perYear: "/ year",
+  ofTotalTax: "of total tax",
 
   bracket1Range: "0 – 75,000 ILS · 5%",
   bracket2Range: "75,000 – 150,000 ILS · 10%",
@@ -178,6 +186,9 @@ const en: Dict = {
 
   back: "Back",
   next: "Next",
+
+  share: "Share",
+  copied: "Copied!",
 
   reset: "Reset",
   calculate: "Recalculate",
@@ -213,7 +224,8 @@ const ar: Dict = {
   transportType: "الطريقة",
   transportPercent: "10% من الراتب",
   transportFixed: "مبلغ ثابت",
-  transportPercentHint: "يخصم 10% من إجمالي الراتب كبدل مواصلات.",
+  transportPercentHint: "سيُخصم 10% من إجمالي راتبك كبدل مواصلات.",
+  transportFixedHint: "سيُخصم مبلغ ثابت كبدل مواصلات.",
 
   personalExemption: "الإعفاء الشخصي",
   personalExemptionHint: "ثابت 36,000 شيكل سنوياً. يُطبَّق تلقائياً.",
@@ -252,6 +264,7 @@ const ar: Dict = {
   breakdownEffectiveRate: "المعدل الفعلي",
   perMonth: "/ شهر",
   perYear: "/ سنة",
+  ofTotalTax: "من إجمالي الضريبة",
 
   bracket1Range: "0 – 75,000 شيكل · 5%",
   bracket2Range: "75,000 – 150,000 شيكل · 10%",
@@ -263,6 +276,9 @@ const ar: Dict = {
 
   back: "رجوع",
   next: "التالي",
+
+  share: "مشاركة",
+  copied: "تم النسخ!",
 
   reset: "إعادة تعيين",
   calculate: "أعد الحساب",
