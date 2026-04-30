@@ -14,15 +14,14 @@ import type {
 import { calculate } from "@/lib/tax";
 import type { Dict, Locale } from "@/lib/i18n";
 import { dictionaries, isRtl } from "@/lib/i18n";
+import { formatMoney, formatPercent } from "@/lib/format";
 import { MoneyInputRow } from "./ui/MoneyInputRow";
 import { Toggle } from "./ui/Toggle";
-import { SectionHeader, FieldLabel, SectionTag } from "./ui/Field";
-import { SpotlightCard } from "./ui/SpotlightCard";
 import { ExemptionRow } from "./ExemptionRow";
 import { ExchangeRates } from "./ExchangeRates";
 import { TaxBreakdownView } from "./TaxBreakdown";
 
-const STORAGE_KEY = "ps_tax__state_v2";
+const STORAGE_KEY = "ps_tax__state_v3";
 
 type State = {
   locale: Locale;
@@ -59,6 +58,8 @@ const DEFAULT_STATE: State = {
 export function Calculator() {
   const [state, setState] = useState<State>(DEFAULT_STATE);
   const [hydrated, setHydrated] = useState(false);
+  const [step, setStep] = useState(1);
+  const [showRates, setShowRates] = useState(false);
 
   useEffect(() => {
     try {
@@ -67,19 +68,13 @@ export function Calculator() {
         const parsed = JSON.parse(raw) as Partial<State>;
         setState((prev) => ({ ...prev, ...parsed }));
       }
-    } catch {
-      /* ignore */
-    }
+    } catch { /* ignore */ }
     setHydrated(true);
   }, []);
 
   useEffect(() => {
     if (!hydrated) return;
-    try {
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
-    } catch {
-      /* ignore */
-    }
+    try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch { /* ignore */ }
     if (typeof document !== "undefined") {
       document.documentElement.lang = state.locale;
       document.documentElement.dir = isRtl(state.locale) ? "rtl" : "ltr";
@@ -88,19 +83,16 @@ export function Calculator() {
 
   const t: Dict = dictionaries[state.locale];
 
-  const input: CalculatorInput = useMemo(
-    () => ({
-      salary: state.salary,
-      transportation:
-        state.transportMode === "percent"
-          ? ({ mode: "percent" } as Transportation)
-          : ({ mode: "fixed", value: state.transportFixed } as Transportation),
-      housingEnabled: state.housing,
-      optional: state.optional,
-      rates: state.rates,
-    }),
-    [state],
-  );
+  const input: CalculatorInput = useMemo(() => ({
+    salary: state.salary,
+    transportation:
+      state.transportMode === "percent"
+        ? ({ mode: "percent" } as Transportation)
+        : ({ mode: "fixed", value: state.transportFixed } as Transportation),
+    housingEnabled: state.housing,
+    optional: state.optional,
+    rates: state.rates,
+  }), [state]);
 
   const breakdown = useMemo(() => calculate(input), [input]);
 
@@ -113,385 +105,424 @@ export function Calculator() {
 
   function reset() {
     setState(DEFAULT_STATE);
+    setStep(1);
   }
 
+  const stepLabels = [t.sectionSalary, t.sectionExemptions, t.sectionBreakdown];
+
   return (
-    <div>
-      <Header
-        t={t}
-        onSwitchLanguage={() =>
-          setState((s) => ({ ...s, locale: s.locale === "en" ? "ar" : "en" }))
-        }
-        onReset={reset}
-      />
+    <div className="min-h-screen bg-bg">
+      {/* ── Header ── */}
+      <header className="sticky top-0 z-30 border-b border-border bg-bg-card/95 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-2xl items-center justify-between gap-4 px-4 py-3 sm:px-6">
+          <Logo />
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={reset}
+              className="rounded-lg px-3 py-1.5 text-xs font-medium text-fg-muted transition-colors hover:bg-bg hover:text-fg"
+            >
+              {t.reset}
+            </button>
+            <button
+              type="button"
+              onClick={() =>
+                setState((s) => ({ ...s, locale: s.locale === "en" ? "ar" : "en" }))
+              }
+              className="rounded-lg border border-primary/30 bg-primary-light px-4 py-1.5 text-xs font-semibold text-primary transition-all hover:bg-primary hover:text-white"
+            >
+              {t.language}
+            </button>
+          </div>
+        </div>
+      </header>
 
-      <Hero t={t} />
-
-      <main className="relative mx-auto max-w-6xl px-6 pb-32 md:px-10">
-        {/* Salary */}
-        <section className="pt-16 md:pt-24">
-          <SectionHeader
-            index="01"
-            eyebrow={t.heroEyebrow}
-            title={t.sectionSalary}
-            description={t.salaryHelp}
-          />
-          <SpotlightCard className="p-5 md:p-7">
-            <MoneyInputRow
-              id="salary"
-              value={state.salary}
-              onChange={(v) => setState((s) => ({ ...s, salary: v }))}
-              t={t}
-            />
-          </SpotlightCard>
-        </section>
-
-        {/* Transport */}
-        <section className="pt-20 md:pt-28">
-          <SectionHeader
-            index="02"
-            eyebrow={t.heroEyebrow}
-            title={t.sectionTransport}
-            description={t.transportPercentHint}
-          />
-          <SpotlightCard className="p-5 md:p-7">
-            <FieldLabel>{t.transportType}</FieldLabel>
-            <div className="mt-3 inline-flex rounded-lg border border-white/10 bg-black/30 p-0.5">
-              {(
-                [
-                  { k: "percent", label: t.transportPercent },
-                  { k: "fixed", label: t.transportFixed },
-                ] as const
-              ).map((o) => {
-                const active = state.transportMode === o.k;
-                return (
-                  <button
-                    key={o.k}
-                    type="button"
-                    onClick={() => setState((s) => ({ ...s, transportMode: o.k }))}
-                    className={`rounded-md px-4 py-2 text-xs font-medium transition-all duration-200 ease-expo ${
-                      active
-                        ? "bg-accent text-white shadow-[0_1px_0_0_rgba(255,255,255,0.15)_inset,0_2px_8px_rgba(94,106,210,0.35)]"
-                        : "text-fg-muted hover:text-fg hover:bg-white/[0.06]"
-                    }`}
-                  >
-                    {o.label}
-                  </button>
-                );
-              })}
-            </div>
-
-            <div className="mt-6">
-              {state.transportMode === "percent" ? (
-                <div className="flex items-center gap-6 rounded-xl border border-accent/20 bg-accent/[0.06] p-6">
-                  <div className="text-5xl font-semibold tracking-tight md:text-6xl">
-                    <span className="text-gradient-accent">10%</span>
-                  </div>
-                  <div>
-                    <p className="text-sm font-medium">{t.transportPercent}</p>
-                    <p className="mt-1 text-sm text-fg-muted">
-                      {t.transportPercentHint}
-                    </p>
-                  </div>
-                </div>
-              ) : (
-                <MoneyInputRow
-                  id="transport-fixed"
-                  value={state.transportFixed}
-                  onChange={(v) => setState((s) => ({ ...s, transportFixed: v }))}
-                  t={t}
-                />
-              )}
-            </div>
-          </SpotlightCard>
-        </section>
-
-        {/* Exemptions */}
-        <section className="pt-20 md:pt-28">
-          <SectionHeader
-            index="03"
-            eyebrow={t.heroEyebrow}
-            title={t.sectionExemptions}
-          />
-
-          {/* Two featured cards */}
-          <div className="mb-8 grid grid-cols-1 gap-5 md:grid-cols-2">
-            {/* Personal — always on */}
-            <SpotlightCard className="relative overflow-hidden p-6 md:p-7">
-              <div className="absolute right-0 top-0 h-40 w-40 -translate-y-1/2 translate-x-1/2 rounded-full bg-accent/20 blur-3xl" />
-              <SectionTag>{t.personalExemption}</SectionTag>
-              <p className="mt-5 text-4xl font-semibold tracking-tight md:text-5xl">
-                <span className="text-gradient-accent">₪ 36,000</span>
-              </p>
-              <p className="mt-3 text-sm text-fg-muted">{t.personalExemptionHint}</p>
-              <div className="mt-4 font-mono text-[10px] uppercase tracking-[0.25em] text-fg-muted">
-                / {t.annually}
-              </div>
-            </SpotlightCard>
-
-            {/* Housing */}
-            <SpotlightCard className="relative p-6 md:p-7">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h3
-                    id="housing-label"
-                    className="text-lg font-semibold tracking-tight md:text-xl"
-                  >
-                    {t.housingExemption}
-                  </h3>
-                  <p className="mt-1 text-sm text-fg-muted">
-                    {t.housingExemptionHint}
-                  </p>
-                </div>
-                <Toggle
-                  value={state.housing}
-                  onChange={(v) => setState((s) => ({ ...s, housing: v }))}
-                  t={t}
-                  labelId="housing-label"
-                />
-              </div>
-              <p
-                className={`mt-5 text-4xl font-semibold tracking-tight md:text-5xl ${
-                  state.housing ? "" : "text-fg-muted"
-                }`}
-              >
-                {state.housing ? (
-                  <span className="text-gradient-fg">₪ 30,000</span>
-                ) : (
-                  "₪ 30,000"
+      {/* ── Live summary bar (steps 2 & 3) ── */}
+      {step > 1 && (
+        <div className="border-b border-border bg-white">
+          <div className="mx-auto flex max-w-2xl items-center justify-between gap-4 px-4 py-2 sm:px-6">
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-fg-muted">{t.breakdownTotalTax}:</span>
+              <span className="text-sm font-bold text-danger">
+                {formatMoney(
+                  breakdown.totalTaxIls / (state.viewPeriod === "monthly" ? 12 : 1),
+                  "ILS",
+                  state.locale,
                 )}
-              </p>
-              <div className="mt-4 font-mono text-[10px] uppercase tracking-[0.25em] text-fg-muted">
-                / {t.annually}
-              </div>
-            </SpotlightCard>
+              </span>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-fg-muted">{t.breakdownNet}:</span>
+              <span className="text-sm font-bold text-success">
+                {formatMoney(
+                  breakdown.netAnnualIls / (state.viewPeriod === "monthly" ? 12 : 1),
+                  "ILS",
+                  state.locale,
+                )}
+              </span>
+              <span className="text-xs text-fg-subtle">
+                · {formatPercent(breakdown.effectiveRate, state.locale)}
+              </span>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <main className="mx-auto max-w-2xl px-4 py-6 sm:px-6">
+        {/* ── Step indicator ── */}
+        <StepIndicator current={step} labels={stepLabels} />
+
+        {/* ── Step card ── */}
+        <div className="mt-5 rounded-2xl border border-border bg-bg-card shadow-card">
+          {/* Step title */}
+          <div className="border-b border-border px-5 py-4">
+            <p className="text-[11px] font-semibold uppercase tracking-widest text-primary">
+              {t.sectionSalary === stepLabels[step - 1]
+                ? `Step ${step} of 3`
+                : `Step ${step} of 3`}
+            </p>
+            <h2 className="mt-0.5 text-lg font-bold text-fg">{stepLabels[step - 1]}</h2>
           </div>
 
-          {/* Optional exemptions */}
-          <div className="grid grid-cols-1 gap-4">
-            <ExemptionRow
-              id="parents"
-              title={t.parentsExemption}
-              enabled={state.optional.parents.enabled}
-              onToggle={(v) => setOptional("parents", { enabled: v })}
-              value={state.optional.parents.value}
-              onChange={(v) => setOptional("parents", { value: v })}
-              t={t}
-            />
-            <ExemptionRow
-              id="university"
-              title={t.universityExemption}
-              enabled={state.optional.university.enabled}
-              onToggle={(v) => setOptional("university", { enabled: v })}
-              value={state.optional.university.value}
-              onChange={(v) => setOptional("university", { value: v })}
-              t={t}
-            />
-            <ExemptionRow
-              id="college"
-              title={t.collegeExemption}
-              enabled={state.optional.college.enabled}
-              onToggle={(v) => setOptional("college", { enabled: v })}
-              value={state.optional.college.value}
-              onChange={(v) => setOptional("college", { value: v })}
-              t={t}
-            />
-            <ExemptionRow
-              id="loans"
-              title={t.loansExemption}
-              enabled={state.optional.loans.enabled}
-              onToggle={(v) => setOptional("loans", { enabled: v })}
-              value={state.optional.loans.value}
-              onChange={(v) => setOptional("loans", { value: v })}
-              t={t}
-            />
-            <ExemptionRow
-              id="other"
-              title={t.otherExemption}
-              enabled={state.optional.other.enabled}
-              onToggle={(v) => setOptional("other", { enabled: v })}
-              value={state.optional.other.value}
-              onChange={(v) => setOptional("other", { value: v })}
-              t={t}
-            />
+          <div className="p-5">
+            {step === 1 && (
+              <StepIncome state={state} setState={setState} t={t} />
+            )}
+            {step === 2 && (
+              <StepExemptions
+                state={state}
+                setState={setState}
+                setOptional={setOptional}
+                showRates={showRates}
+                setShowRates={setShowRates}
+                t={t}
+              />
+            )}
+            {step === 3 && (
+              <TaxBreakdownView
+                breakdown={breakdown}
+                locale={state.locale}
+                t={t}
+                viewCurrency={state.viewCurrency}
+                viewPeriod={state.viewPeriod}
+                onChangeView={({ currency, period }) =>
+                  setState((s) => ({ ...s, viewCurrency: currency, viewPeriod: period }))
+                }
+                rates={state.rates}
+              />
+            )}
           </div>
-        </section>
+        </div>
 
-        {/* Exchange */}
-        <section className="pt-20 md:pt-28">
-          <SectionHeader
-            index="04"
-            eyebrow={t.heroEyebrow}
-            title={t.sectionRates}
-            description={t.ratesHint}
-          />
-          <ExchangeRates
-            rates={state.rates}
-            onChange={(r) => setState((s) => ({ ...s, rates: r }))}
-            fetchedAt={state.ratesFetchedAt}
-            onFetched={(at) => setState((s) => ({ ...s, ratesFetchedAt: at }))}
-            locale={state.locale}
-            t={t}
-          />
-        </section>
+        {/* ── Navigation ── */}
+        <div className="mt-4 flex items-center justify-between gap-4">
+          {step > 1 ? (
+            <button
+              type="button"
+              onClick={() => setStep((s) => s - 1)}
+              className="rounded-xl border border-border px-5 py-2.5 text-sm font-semibold text-fg-muted transition-all hover:border-border-strong hover:text-fg"
+            >
+              ← {t.back}
+            </button>
+          ) : (
+            <div />
+          )}
 
-        {/* Breakdown */}
-        <section className="pt-24 md:pt-32" id="breakdown">
-          <SectionHeader
-            index="05"
-            eyebrow={t.heroEyebrow}
-            title={t.sectionBreakdown}
-          />
-          <TaxBreakdownView
-            breakdown={breakdown}
-            locale={state.locale}
-            t={t}
-            viewCurrency={state.viewCurrency}
-            viewPeriod={state.viewPeriod}
-            onChangeView={({ currency, period }) =>
-              setState((s) => ({ ...s, viewCurrency: currency, viewPeriod: period }))
-            }
-            rates={state.rates}
-          />
-        </section>
+          {step < 3 ? (
+            <button
+              type="button"
+              onClick={() => setStep((s) => s + 1)}
+              className="rounded-xl bg-primary px-7 py-2.5 text-sm font-semibold text-white shadow-btn-primary transition-all hover:bg-primary-dark active:scale-[0.98]"
+            >
+              {t.next} →
+            </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => setStep(1)}
+              className="rounded-xl border border-border px-5 py-2.5 text-sm font-semibold text-fg-muted transition-all hover:border-border-strong hover:text-fg"
+            >
+              ← {t.calculate}
+            </button>
+          )}
+        </div>
+
+        {/* ── Footer ── */}
+        <footer className="mt-10 border-t border-border pt-5 text-center">
+          <p className="text-xs leading-relaxed text-fg-subtle">{t.footerDisclaimer}</p>
+        </footer>
       </main>
-
-      <Footer t={t} />
     </div>
   );
 }
 
-function Header({
+/* ── Step 1: Income ── */
+function StepIncome({
+  state,
+  setState,
   t,
-  onSwitchLanguage,
-  onReset,
 }: {
+  state: State;
+  setState: React.Dispatch<React.SetStateAction<State>>;
   t: Dict;
-  onSwitchLanguage: () => void;
-  onReset: () => void;
 }) {
   return (
-    <header className="sticky top-0 z-30 border-b border-white/[0.06] bg-bg-base/70 backdrop-blur-xl">
-      <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-6 py-3.5 md:px-10">
-        <div className="flex items-center gap-3">
-          <Logo />
-          <div className="hidden h-5 w-px bg-white/10 md:block" />
-          <span className="hidden text-sm text-fg-muted md:block">
-            Palestinian Income Tax
-          </span>
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            type="button"
-            onClick={onReset}
-            className="rounded-lg px-3 py-2 text-xs font-medium text-fg-muted transition-colors hover:bg-white/[0.05] hover:text-fg"
-          >
-            {t.reset}
-          </button>
-          <button
-            type="button"
-            onClick={onSwitchLanguage}
-            className="rounded-lg bg-accent px-4 py-2 text-xs font-medium text-white shadow-accent transition-all duration-200 ease-expo hover:bg-accent-bright hover:shadow-accent-hover active:scale-[0.98]"
-          >
-            {t.language}
-          </button>
-        </div>
+    <div className="space-y-6">
+      {/* Salary */}
+      <div>
+        <p className="mb-1 text-sm font-semibold text-fg">{t.sectionSalary}</p>
+        <p className="mb-3 text-xs text-fg-muted">{t.salaryHelp}</p>
+        <MoneyInputRow
+          id="salary"
+          value={state.salary}
+          onChange={(v) => setState((s) => ({ ...s, salary: v }))}
+          t={t}
+        />
       </div>
-    </header>
+
+      <div className="h-px bg-border" />
+
+      {/* Transportation */}
+      <div>
+        <p className="mb-1 text-sm font-semibold text-fg">{t.sectionTransport}</p>
+        <p className="mb-3 text-xs text-fg-muted">{t.transportPercentHint}</p>
+
+        {/* Mode selector */}
+        <div className="mb-4 inline-flex rounded-lg border border-border bg-bg p-1">
+          {(
+            [
+              { k: "percent" as const, label: t.transportPercent },
+              { k: "fixed" as const, label: t.transportFixed },
+            ] as const
+          ).map((o) => {
+            const active = state.transportMode === o.k;
+            return (
+              <button
+                key={o.k}
+                type="button"
+                onClick={() => setState((s) => ({ ...s, transportMode: o.k }))}
+                className={`rounded-md px-4 py-2 text-xs font-bold transition-all ${
+                  active
+                    ? "bg-primary text-white shadow-btn-primary"
+                    : "text-fg-muted hover:text-fg"
+                }`}
+              >
+                {o.label}
+              </button>
+            );
+          })}
+        </div>
+
+        {state.transportMode === "percent" ? (
+          <div className="flex items-center gap-4 rounded-xl border border-primary/20 bg-primary-light/40 p-4">
+            <span className="text-3xl font-extrabold text-primary">10%</span>
+            <p className="text-xs text-fg-muted">{t.transportPercentHint}</p>
+          </div>
+        ) : (
+          <MoneyInputRow
+            id="transport-fixed"
+            value={state.transportFixed}
+            onChange={(v) => setState((s) => ({ ...s, transportFixed: v }))}
+            t={t}
+          />
+        )}
+      </div>
+    </div>
   );
 }
 
+/* ── Step 2: Exemptions ── */
+function StepExemptions({
+  state,
+  setState,
+  setOptional,
+  showRates,
+  setShowRates,
+  t,
+}: {
+  state: State;
+  setState: React.Dispatch<React.SetStateAction<State>>;
+  setOptional: (key: OptionalExemptionKey, patch: Partial<OptionalExemption>) => void;
+  showRates: boolean;
+  setShowRates: (v: boolean) => void;
+  t: Dict;
+}) {
+  return (
+    <div className="space-y-3">
+      {/* Personal (auto) */}
+      <div className="flex items-center justify-between rounded-xl border border-success/30 bg-success-light/40 px-4 py-3">
+        <div>
+          <p className="text-sm font-semibold text-fg">{t.personalExemption}</p>
+          <p className="text-xs text-fg-muted">{t.personalExemptionHint}</p>
+        </div>
+        <span className="text-sm font-bold text-success">₪ 36,000</span>
+      </div>
+
+      {/* Housing (fixed amount, just a toggle) */}
+      <div
+        className={`flex items-center justify-between rounded-xl border px-4 py-3 transition-all duration-200 ${
+          state.housing
+            ? "border-primary/30 bg-primary-light/20"
+            : "border-border bg-bg-card"
+        }`}
+      >
+        <div>
+          <p id="housing-label" className="text-sm font-semibold text-fg">
+            {t.housingExemption}
+          </p>
+          <p className="text-xs text-fg-muted">{t.housingExemptionHint}</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <span
+            className={`text-sm font-bold ${
+              state.housing ? "text-primary" : "text-fg-subtle"
+            }`}
+          >
+            ₪ 30,000
+          </span>
+          <Toggle
+            value={state.housing}
+            onChange={(v) => setState((s) => ({ ...s, housing: v }))}
+            t={t}
+            labelId="housing-label"
+            showLabel={false}
+          />
+        </div>
+      </div>
+
+      {/* Optional exemptions */}
+      <ExemptionRow
+        id="parents"
+        title={t.parentsExemption}
+        enabled={state.optional.parents.enabled}
+        onToggle={(v) => setOptional("parents", { enabled: v })}
+        value={state.optional.parents.value}
+        onChange={(v) => setOptional("parents", { value: v })}
+        t={t}
+      />
+      <ExemptionRow
+        id="university"
+        title={t.universityExemption}
+        enabled={state.optional.university.enabled}
+        onToggle={(v) => setOptional("university", { enabled: v })}
+        value={state.optional.university.value}
+        onChange={(v) => setOptional("university", { value: v })}
+        t={t}
+      />
+      <ExemptionRow
+        id="college"
+        title={t.collegeExemption}
+        enabled={state.optional.college.enabled}
+        onToggle={(v) => setOptional("college", { enabled: v })}
+        value={state.optional.college.value}
+        onChange={(v) => setOptional("college", { value: v })}
+        t={t}
+      />
+      <ExemptionRow
+        id="loans"
+        title={t.loansExemption}
+        enabled={state.optional.loans.enabled}
+        onToggle={(v) => setOptional("loans", { enabled: v })}
+        value={state.optional.loans.value}
+        onChange={(v) => setOptional("loans", { value: v })}
+        t={t}
+      />
+      <ExemptionRow
+        id="other"
+        title={t.otherExemption}
+        enabled={state.optional.other.enabled}
+        onToggle={(v) => setOptional("other", { enabled: v })}
+        value={state.optional.other.value}
+        onChange={(v) => setOptional("other", { value: v })}
+        t={t}
+      />
+
+      {/* Exchange rates (collapsible) */}
+      <div className="rounded-xl border border-border bg-bg-card">
+        <button
+          type="button"
+          onClick={() => setShowRates(!showRates)}
+          className="flex w-full items-center justify-between px-4 py-3 text-sm font-semibold text-fg"
+        >
+          <span>{t.sectionRates}</span>
+          <span className="text-fg-muted">{showRates ? "▲" : "▼"}</span>
+        </button>
+        {showRates && (
+          <div className="border-t border-border px-4 pb-4 pt-3">
+            <p className="mb-3 text-xs text-fg-muted">{t.ratesHint}</p>
+            <ExchangeRates
+              rates={state.rates}
+              onChange={(r) => setState((s) => ({ ...s, rates: r }))}
+              fetchedAt={state.ratesFetchedAt}
+              onFetched={(at) => setState((s) => ({ ...s, ratesFetchedAt: at }))}
+              locale={state.locale}
+              t={t}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
+/* ── Step indicator ── */
+function StepIndicator({
+  current,
+  labels,
+}: {
+  current: number;
+  labels: string[];
+}) {
+  return (
+    <div className="flex items-center justify-center">
+      {labels.map((label, i) => {
+        const n = i + 1;
+        const done = n < current;
+        const active = n === current;
+        return (
+          <div key={i} className="flex items-center">
+            <div className="flex flex-col items-center gap-1">
+              <div
+                className={`flex h-8 w-8 items-center justify-center rounded-full text-xs font-bold transition-all ${
+                  done
+                    ? "bg-primary text-white"
+                    : active
+                    ? "bg-primary text-white ring-4 ring-primary/20"
+                    : "border-2 border-border-strong text-fg-muted"
+                }`}
+              >
+                {done ? "✓" : n}
+              </div>
+              <span
+                className={`max-w-[72px] text-center text-[10px] font-semibold leading-tight ${
+                  active ? "text-primary" : done ? "text-fg-muted" : "text-fg-subtle"
+                }`}
+              >
+                {label}
+              </span>
+            </div>
+            {i < labels.length - 1 && (
+              <div
+                className={`mx-2 mb-5 h-px w-10 transition-colors sm:w-16 ${
+                  done ? "bg-primary" : "bg-border-strong"
+                }`}
+              />
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+/* ── Logo ── */
 function Logo() {
   return (
     <div className="flex items-center gap-2">
-      <span className="relative inline-flex h-7 w-7 items-center justify-center rounded-lg border border-accent/40 bg-gradient-to-br from-accent/30 to-accent/10 shadow-[0_0_20px_rgba(94,106,210,0.35)]">
-        <span className="font-mono text-[11px] font-bold text-white">PS</span>
+      <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-primary text-xs font-extrabold text-white shadow-btn-primary">
+        PS
       </span>
-      <span className="font-mono text-sm font-semibold tracking-tight text-fg">TAX</span>
+      <span className="text-sm font-extrabold tracking-tight text-fg">TAX</span>
     </div>
-  );
-}
-
-function Hero({ t }: { t: Dict }) {
-  return (
-    <section className="relative isolate overflow-hidden">
-      <div className="mx-auto max-w-6xl px-6 pb-16 pt-24 md:px-10 md:pb-24 md:pt-32">
-        <div className="mb-8 flex justify-center md:mb-10">
-          <SectionTag>{t.heroEyebrow}</SectionTag>
-        </div>
-
-        <h1 className="mx-auto max-w-4xl text-center font-semibold leading-[0.95] tracking-displayed">
-          <span className="block text-5xl md:text-6xl lg:text-7xl">
-            <span className="text-gradient-fg">{t.heroHeadlinePart1}</span>
-          </span>
-          <span className="mt-3 block text-5xl md:text-6xl lg:text-7xl">
-            <span className="text-gradient-accent">{t.heroHeadlinePart2}</span>
-          </span>
-        </h1>
-
-        <p className="mx-auto mt-8 max-w-2xl text-center text-base leading-relaxed text-fg-muted md:text-lg">
-          {t.heroLead}
-        </p>
-
-        {/* Bracket glass pills */}
-        <div className="mx-auto mt-12 grid max-w-3xl grid-cols-1 gap-4 sm:grid-cols-3">
-          <BracketPill label="Bracket I" rate="5%" range={t.bracket1Range} />
-          <BracketPill label="Bracket II" rate="10%" range={t.bracket2Range} emphasize />
-          <BracketPill label="Bracket III" rate="15%" range={t.bracket3Range} />
-        </div>
-      </div>
-    </section>
-  );
-}
-
-function BracketPill({
-  label,
-  rate,
-  range,
-  emphasize,
-}: {
-  label: string;
-  rate: string;
-  range: string;
-  emphasize?: boolean;
-}) {
-  return (
-    <div
-      className={`rounded-2xl border p-5 backdrop-blur-md transition-all duration-300 ease-expo hover:-translate-y-1 ${
-        emphasize
-          ? "border-accent/30 bg-gradient-to-b from-accent/[0.10] to-accent/[0.02] shadow-[0_0_0_1px_rgba(94,106,210,0.15),0_8px_30px_rgba(94,106,210,0.10)]"
-          : "border-white/[0.06] bg-gradient-to-b from-white/[0.05] to-white/[0.01] shadow-card hover:shadow-card-hover"
-      }`}
-    >
-      <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-fg-muted">
-        {label}
-      </p>
-      <p className="mt-2 text-3xl font-semibold tracking-tight md:text-4xl">
-        <span className={emphasize ? "text-gradient-accent" : "text-gradient-fg"}>
-          {rate}
-        </span>
-      </p>
-      <p className="mt-1 font-mono text-[10px] uppercase tracking-[0.2em] text-fg-muted">
-        {range}
-      </p>
-    </div>
-  );
-}
-
-function Footer({ t }: { t: Dict }) {
-  return (
-    <footer className="relative border-t border-white/[0.06]">
-      <div className="mx-auto grid max-w-6xl gap-8 px-6 py-16 md:grid-cols-3 md:px-10 md:py-24">
-        <div className="md:col-span-2">
-          <Logo />
-          <p className="mt-6 max-w-md text-base text-fg">{t.footerNote}</p>
-        </div>
-        <div>
-          <p className="text-sm leading-relaxed text-fg-muted">
-            {t.footerDisclaimer}
-          </p>
-        </div>
-      </div>
-    </footer>
   );
 }
