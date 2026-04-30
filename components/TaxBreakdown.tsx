@@ -18,6 +18,13 @@ type Props = {
 
 const CURRENCIES: Currency[] = ["ILS", "USD", "JOD"];
 
+// Per-bracket accent colours (light, mid, dark sky)
+const BRACKET_COLORS = [
+  { bar: "#38BDF8", bg: "rgba(56,189,248,0.12)", badge: "#0EA5E9" },
+  { bar: "#0284C7", bg: "rgba(2,132,199,0.12)", badge: "#0284C7" },
+  { bar: "#075985", bg: "rgba(7,89,133,0.12)", badge: "#075985" },
+];
+
 export function TaxBreakdownView({
   breakdown,
   locale,
@@ -37,10 +44,11 @@ export function TaxBreakdownView({
     };
   }, [factor, viewCurrency, rates, locale]);
 
-  const maxBracketTax = Math.max(...breakdown.brackets.map((b) => b.tax), 1);
-
   const bracketLabels = [t.breakdownBracket1, t.breakdownBracket2, t.breakdownBracket3];
   const bracketRanges = [t.bracket1Range, t.bracket2Range, t.bracket3Range];
+
+  const totalTax = breakdown.totalTaxIls;
+  const activeBrackets = breakdown.brackets.filter((b) => b.taxableInBracket > 0);
 
   return (
     <div className="animate-fade-up space-y-5">
@@ -127,30 +135,83 @@ export function TaxBreakdownView({
         />
       </div>
 
-      {/* Bracket breakdown */}
+      {/* ── Bracket breakdown ── */}
       <div>
         <p className="mb-3 text-sm font-semibold text-fg">{t.breakdownBracketLabel}</p>
+
+        {/* Stacked overview bar */}
+        {activeBrackets.length > 0 && (
+          <div className="mb-4 rounded-xl border border-border bg-bg-card p-4">
+            <div className="mb-2 flex items-center justify-between text-xs text-fg-muted">
+              <span>{t.breakdownTaxable}</span>
+              <span className="font-semibold text-fg">
+                {money(breakdown.taxableBaseIls)}
+              </span>
+            </div>
+            {/* Segmented bar: each segment = bracket's taxable portion */}
+            <div className="flex h-4 w-full overflow-hidden rounded-full bg-border">
+              {breakdown.brackets.map((b, i) => {
+                const pct =
+                  breakdown.taxableBaseIls > 0
+                    ? (b.taxableInBracket / breakdown.taxableBaseIls) * 100
+                    : 0;
+                return pct > 0 ? (
+                  <div
+                    key={i}
+                    title={`${bracketLabels[i]}: ${pct.toFixed(1)}%`}
+                    style={{
+                      width: `${pct}%`,
+                      background: BRACKET_COLORS[i].bar,
+                    }}
+                    className={`transition-all duration-500 ease-expo ${i > 0 ? "border-l border-white/30" : ""}`}
+                  />
+                ) : null;
+              })}
+            </div>
+            {/* Legend */}
+            <div className="mt-2 flex flex-wrap gap-3">
+              {breakdown.brackets.map((b, i) => {
+                const pct =
+                  breakdown.taxableBaseIls > 0
+                    ? (b.taxableInBracket / breakdown.taxableBaseIls) * 100
+                    : 0;
+                return pct > 0 ? (
+                  <div key={i} className="flex items-center gap-1.5">
+                    <span
+                      className="h-2 w-2 rounded-full"
+                      style={{ background: BRACKET_COLORS[i].bar }}
+                    />
+                    <span className="text-xs text-fg-muted">
+                      {bracketLabels[i]} · {pct.toFixed(0)}%
+                    </span>
+                  </div>
+                ) : null;
+              })}
+            </div>
+          </div>
+        )}
+
+        {/* Individual bracket rows */}
         <div className="space-y-2">
           {breakdown.brackets.map((b, i) => {
             const active = b.taxableInBracket > 0;
-            const barPct = (b.tax / maxBracketTax) * 100;
+            const pctOfTax = totalTax > 0 ? (b.tax / totalTax) * 100 : 0;
+            const color = BRACKET_COLORS[i];
+
             return (
               <div
                 key={i}
-                className={`rounded-xl border p-4 transition-all ${
-                  active
-                    ? "border-primary/20 bg-primary-light/20"
-                    : "border-border bg-bg-card opacity-50"
+                className={`overflow-hidden rounded-xl border transition-all ${
+                  active ? "border-border" : "border-border bg-bg-card opacity-40"
                 }`}
+                style={active ? { background: color.bg, borderColor: color.bar + "40" } : undefined}
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="flex items-center gap-2.5">
+                <div className="flex items-center justify-between gap-3 p-4">
+                  {/* Left: badge + info */}
+                  <div className="flex items-center gap-3">
                     <span
-                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
-                        active
-                          ? "bg-primary text-white"
-                          : "bg-fg-subtle/20 text-fg-muted"
-                      }`}
+                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-xs font-bold text-white"
+                      style={{ background: active ? color.badge : "#94A3B8" }}
                     >
                       {["I", "II", "III"][i]}
                     </span>
@@ -161,19 +222,46 @@ export function TaxBreakdownView({
                       <p className="text-xs text-fg-muted">{bracketRanges[i]}</p>
                     </div>
                   </div>
+
+                  {/* Right: tax amount */}
                   <div className="text-end">
-                    <p className="text-sm font-bold text-fg">{money(b.tax)}</p>
-                    <p className="text-xs text-fg-muted">
-                      {money(b.taxableInBracket)} {t.breakdownTaxable.toLowerCase()}
+                    <p
+                      className="text-base font-bold"
+                      style={{ color: active ? color.badge : "#94A3B8" }}
+                    >
+                      {money(b.tax)}
                     </p>
+                    {active && (
+                      <p className="text-xs text-fg-muted">
+                        {pctOfTax.toFixed(0)}% {t.ofTotalTax}
+                      </p>
+                    )}
                   </div>
                 </div>
+
+                {/* Progress bar — shows this bracket's share of total tax */}
                 {active && (
-                  <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-border">
-                    <div
-                      className="h-full rounded-full bg-primary transition-all duration-500 ease-expo"
-                      style={{ width: `${barPct}%` }}
-                    />
+                  <div className="px-4 pb-4">
+                    <div className="relative h-2.5 w-full overflow-hidden rounded-full bg-white/60">
+                      <div
+                        className="absolute inset-y-0 left-0 rounded-full transition-all duration-700 ease-expo"
+                        style={{
+                          width: `${pctOfTax}%`,
+                          background: color.bar,
+                        }}
+                      />
+                    </div>
+                    <div className="mt-1.5 flex items-center justify-between">
+                      <span className="text-xs text-fg-muted">
+                        {t.breakdownTaxable}: {money(b.taxableInBracket)}
+                      </span>
+                      <span
+                        className="text-xs font-bold"
+                        style={{ color: color.badge }}
+                      >
+                        {pctOfTax.toFixed(1)}%
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>
@@ -182,7 +270,7 @@ export function TaxBreakdownView({
         </div>
       </div>
 
-      {/* Exemption ledger (only non-zero entries) */}
+      {/* Exemption ledger */}
       {breakdown.totalExemptionsIls > 0 && (
         <div>
           <p className="mb-3 text-sm font-semibold text-fg">{t.breakdownExemptions}</p>
