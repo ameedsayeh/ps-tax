@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import type { Rates } from "@/lib/tax";
 import { fetchLiveRates } from "@/lib/exchange";
 import type { Dict, Locale } from "@/lib/i18n";
@@ -80,6 +80,7 @@ export function ExchangeRates({
   );
 }
 
+/** Rate input with local string state that syncs when the parent value changes (e.g. after fetch). */
 function RateField({
   label,
   value,
@@ -90,6 +91,11 @@ function RateField({
   onChange: (v: number) => void;
 }) {
   const [str, setStr] = useState(String(value));
+
+  // Sync display when value changes from outside (live fetch)
+  useEffect(() => {
+    setStr(String(value));
+  }, [value]);
 
   return (
     <div className="rounded-xl border border-border bg-bg p-3 transition-all focus-within:border-primary focus-within:shadow-input-focus">
