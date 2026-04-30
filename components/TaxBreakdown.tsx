@@ -5,7 +5,6 @@ import type { Currency, Period, Rates, TaxBreakdown as TB } from "@/lib/tax";
 import { convertIls } from "@/lib/tax";
 import type { Dict, Locale } from "@/lib/i18n";
 import { formatMoney, formatPercent } from "@/lib/format";
-import { SpotlightCard } from "./ui/SpotlightCard";
 
 type Props = {
   breakdown: TB;
@@ -38,255 +37,229 @@ export function TaxBreakdownView({
     };
   }, [factor, viewCurrency, rates, locale]);
 
-  const bracketLabels = [
-    t.breakdownBracket1,
-    t.breakdownBracket2,
-    t.breakdownBracket3,
-  ];
+  const maxBracketTax = Math.max(...breakdown.brackets.map((b) => b.tax), 1);
+
+  const bracketLabels = [t.breakdownBracket1, t.breakdownBracket2, t.breakdownBracket3];
   const bracketRanges = [t.bracket1Range, t.bracket2Range, t.bracket3Range];
 
-  const optionalKeys = [
-    { key: "parents" as const, label: t.parentsExemption },
-    { key: "university" as const, label: t.universityExemption },
-    { key: "college" as const, label: t.collegeExemption },
-    { key: "loans" as const, label: t.loansExemption },
-    { key: "other" as const, label: t.otherExemption },
-  ];
-
   return (
-    <div className="animate-fade-up">
+    <div className="animate-fade-up space-y-5">
       {/* View switcher */}
-      <div className="mb-8 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-white/[0.06] bg-white/[0.03] px-5 py-4">
-        <span className="font-mono text-[10px] uppercase tracking-[0.3em] text-fg-muted">
-          {t.viewIn}
-        </span>
-        <div className="flex flex-wrap items-center gap-4">
-          <Segmented
-            options={CURRENCIES.map((c) => ({ value: c, label: c }))}
-            value={viewCurrency}
-            onChange={(c) => onChangeView({ currency: c as Currency, period: viewPeriod })}
-          />
-          <div className="h-5 w-px bg-white/10" />
-          <Segmented
-            options={[
-              { value: "monthly", label: t.monthly },
-              { value: "annually", label: t.annually },
-            ]}
-            value={viewPeriod}
-            onChange={(p) => onChangeView({ currency: viewCurrency, period: p as Period })}
-          />
+      <div className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium text-fg-muted">{t.viewIn}:</span>
+        <div className="flex rounded-lg border border-border bg-bg p-0.5">
+          {CURRENCIES.map((c) => (
+            <button
+              key={c}
+              type="button"
+              onClick={() => onChangeView({ currency: c, period: viewPeriod })}
+              className={`rounded-md px-3 py-1.5 text-xs font-bold transition-all ${
+                viewCurrency === c
+                  ? "bg-primary text-white shadow-btn-primary"
+                  : "text-fg-muted hover:text-fg"
+              }`}
+            >
+              {c}
+            </button>
+          ))}
+        </div>
+        <div className="flex rounded-lg border border-border bg-bg p-0.5">
+          {(["monthly", "annually"] as Period[]).map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => onChangeView({ currency: viewCurrency, period: p })}
+              className={`rounded-md px-3 py-1.5 text-xs font-bold transition-all ${
+                viewPeriod === p
+                  ? "bg-primary text-white shadow-btn-primary"
+                  : "text-fg-muted hover:text-fg"
+              }`}
+            >
+              {p === "monthly" ? t.monthly : t.annually}
+            </button>
+          ))}
         </div>
       </div>
 
-      {/* Bento: hero totals */}
-      <div className="grid grid-cols-1 gap-5 md:grid-cols-6">
-        {/* Total tax — large, with accent glow */}
-        <SpotlightCard className="p-7 md:col-span-3 md:p-9">
-          <div className="flex items-center gap-3">
-            <span className="h-2 w-2 rounded-full bg-accent shadow-[0_0_12px_rgba(94,106,210,0.6)]" />
-            <span className="font-mono text-[11px] uppercase tracking-[0.3em] text-fg-muted">
-              {t.breakdownTotalTax}
-            </span>
-          </div>
-          <p className="mt-5 text-5xl font-semibold tracking-tight md:text-6xl">
-            <span className="text-gradient-accent">{money(breakdown.totalTaxIls)}</span>
+      {/* Hero: Tax + Net */}
+      <div className="grid grid-cols-2 gap-3">
+        <div className="rounded-2xl bg-danger-light p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-danger">
+            {t.breakdownTotalTax}
           </p>
-          <p className="mt-3 text-sm text-fg-muted">
+          <p className="mt-2 text-2xl font-bold text-danger">
+            {money(breakdown.totalTaxIls)}
+          </p>
+          <p className="mt-1 text-xs text-danger/70">
             {viewPeriod === "monthly" ? t.perMonth : t.perYear} ·{" "}
-            {formatPercent(breakdown.effectiveRate, locale)} {t.breakdownEffectiveRate.toLowerCase()}
+            {formatPercent(breakdown.effectiveRate, locale)}
           </p>
-        </SpotlightCard>
-
-        {/* Take-home — large */}
-        <SpotlightCard className="p-7 md:col-span-3 md:p-9">
-          <span className="font-mono text-[11px] uppercase tracking-[0.3em] text-fg-muted">
+        </div>
+        <div className="rounded-2xl bg-success-light p-5">
+          <p className="text-xs font-semibold uppercase tracking-wide text-success">
             {t.breakdownNet}
-          </span>
-          <p className="mt-5 text-5xl font-semibold tracking-tight md:text-6xl">
-            <span className="text-gradient-fg">{money(breakdown.netAnnualIls)}</span>
           </p>
-          <p className="mt-3 text-sm text-fg-muted">
+          <p className="mt-2 text-2xl font-bold text-success">
+            {money(breakdown.netAnnualIls)}
+          </p>
+          <p className="mt-1 text-xs text-success/70">
             {viewPeriod === "monthly" ? t.perMonth : t.perYear}
           </p>
-        </SpotlightCard>
+        </div>
+      </div>
 
-        {/* Gross */}
-        <Stat label={t.breakdownGross} value={money(breakdown.grossAnnualIls)} />
-        {/* Exemptions */}
-        <Stat
+      {/* Summary table */}
+      <div className="overflow-hidden rounded-xl border border-border bg-bg-card">
+        <Line label={t.breakdownGross} value={money(breakdown.grossAnnualIls)} />
+        <Line
           label={t.breakdownExemptions}
           value={`− ${money(breakdown.totalExemptionsIls)}`}
           muted
         />
-        {/* Taxable */}
-        <Stat
+        <Line
           label={t.breakdownTaxable}
           value={money(breakdown.taxableBaseIls)}
-          highlight
+          bold
+        />
+        <Line
+          label={t.breakdownEffectiveRate}
+          value={formatPercent(breakdown.effectiveRate, locale)}
         />
       </div>
 
-      {/* Brackets */}
-      <div className="mt-12">
-        <h3 className="mb-5 text-xl font-semibold tracking-tight md:text-2xl">
-          {t.breakdownBracketLabel}
-        </h3>
-        <SpotlightCard className="overflow-hidden">
+      {/* Bracket breakdown */}
+      <div>
+        <p className="mb-3 text-sm font-semibold text-fg">{t.breakdownBracketLabel}</p>
+        <div className="space-y-2">
           {breakdown.brackets.map((b, i) => {
             const active = b.taxableInBracket > 0;
+            const barPct = (b.tax / maxBracketTax) * 100;
             return (
               <div
                 key={i}
-                className={`grid grid-cols-12 items-center gap-4 px-6 py-5 md:px-8 md:py-6 ${
-                  i < 2 ? "border-b border-white/[0.06]" : ""
-                } ${active ? "" : "opacity-40"}`}
+                className={`rounded-xl border p-4 transition-all ${
+                  active
+                    ? "border-primary/20 bg-primary-light/20"
+                    : "border-border bg-bg-card opacity-50"
+                }`}
               >
-                <div className="col-span-12 flex items-center gap-3 md:col-span-4">
-                  <span
-                    className={`inline-flex h-8 w-8 items-center justify-center rounded-lg border font-mono text-xs ${
-                      active
-                        ? "border-accent/40 bg-accent/10 text-accent"
-                        : "border-white/10 bg-white/[0.04] text-fg-muted"
-                    }`}
-                  >
-                    {["I", "II", "III"][i]}
-                  </span>
-                  <div>
-                    <p className="text-base font-semibold tracking-tight md:text-lg">
-                      {bracketLabels[i]}
-                    </p>
-                    <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-fg-muted">
-                      {bracketRanges[i]}
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-center gap-2.5">
+                    <span
+                      className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-bold ${
+                        active
+                          ? "bg-primary text-white"
+                          : "bg-fg-subtle/20 text-fg-muted"
+                      }`}
+                    >
+                      {["I", "II", "III"][i]}
+                    </span>
+                    <div>
+                      <p className="text-sm font-semibold text-fg">
+                        {bracketLabels[i]}
+                      </p>
+                      <p className="text-xs text-fg-muted">{bracketRanges[i]}</p>
+                    </div>
+                  </div>
+                  <div className="text-end">
+                    <p className="text-sm font-bold text-fg">{money(b.tax)}</p>
+                    <p className="text-xs text-fg-muted">
+                      {money(b.taxableInBracket)} {t.breakdownTaxable.toLowerCase()}
                     </p>
                   </div>
                 </div>
-                <div className="col-span-6 md:col-span-4">
-                  <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-fg-muted">
-                    {t.breakdownTaxable}
-                  </p>
-                  <p className="mt-1 font-mono text-base text-fg md:text-lg">
-                    {money(b.taxableInBracket)}
-                  </p>
-                </div>
-                <div className="col-span-6 text-end md:col-span-4">
-                  <p className="font-mono text-[10px] uppercase tracking-[0.25em] text-fg-muted">
-                    {t.breakdownTotalTax}
-                  </p>
-                  <p className="mt-1 text-xl font-semibold tracking-tight md:text-2xl">
-                    {money(b.tax)}
-                  </p>
-                </div>
+                {active && (
+                  <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-border">
+                    <div
+                      className="h-full rounded-full bg-primary transition-all duration-500 ease-expo"
+                      style={{ width: `${barPct}%` }}
+                    />
+                  </div>
+                )}
               </div>
             );
           })}
-        </SpotlightCard>
+        </div>
       </div>
 
-      {/* Exemption ledger */}
-      <div className="mt-12">
-        <h3 className="mb-5 text-xl font-semibold tracking-tight md:text-2xl">
-          {t.breakdownExemptions}
-        </h3>
-        <SpotlightCard className="overflow-hidden">
-          <LedgerLine
-            label={t.sectionTransport}
-            value={money(breakdown.transportationExemptionIls)}
-          />
-          <LedgerLine
-            label={t.personalExemption}
-            value={money(breakdown.personalExemptionIls)}
-          />
-          {breakdown.housingExemptionIls > 0 && (
-            <LedgerLine
-              label={t.housingExemption}
-              value={money(breakdown.housingExemptionIls)}
-            />
-          )}
-          {optionalKeys
-            .filter((k) => breakdown.optionalExemptionsIls[k.key] > 0)
-            .map((k) => (
+      {/* Exemption ledger (only non-zero entries) */}
+      {breakdown.totalExemptionsIls > 0 && (
+        <div>
+          <p className="mb-3 text-sm font-semibold text-fg">{t.breakdownExemptions}</p>
+          <div className="overflow-hidden rounded-xl border border-border bg-bg-card">
+            {breakdown.transportationExemptionIls > 0 && (
               <LedgerLine
-                key={k.key}
-                label={k.label}
-                value={money(breakdown.optionalExemptionsIls[k.key])}
+                label={t.sectionTransport}
+                value={money(breakdown.transportationExemptionIls)}
               />
-            ))}
-        </SpotlightCard>
-      </div>
+            )}
+            <LedgerLine
+              label={t.personalExemption}
+              value={money(breakdown.personalExemptionIls)}
+            />
+            {breakdown.housingExemptionIls > 0 && (
+              <LedgerLine
+                label={t.housingExemption}
+                value={money(breakdown.housingExemptionIls)}
+              />
+            )}
+            {Object.entries(breakdown.optionalExemptionsIls)
+              .filter(([, v]) => v > 0)
+              .map(([key, val]) => {
+                const labelMap: Record<string, string> = {
+                  parents: t.parentsExemption,
+                  university: t.universityExemption,
+                  college: t.collegeExemption,
+                  loans: t.loansExemption,
+                  other: t.otherExemption,
+                };
+                return (
+                  <LedgerLine
+                    key={key}
+                    label={labelMap[key] ?? key}
+                    value={money(val)}
+                  />
+                );
+              })}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
-function Stat({
+function Line({
   label,
   value,
-  highlight,
   muted,
+  bold,
 }: {
   label: string;
   value: string;
-  highlight?: boolean;
   muted?: boolean;
+  bold?: boolean;
 }) {
   return (
-    <SpotlightCard
-      className={`p-6 md:col-span-2 ${
-        highlight
-          ? "border-accent/30 bg-gradient-to-b from-accent/[0.08] to-accent/[0.02]"
-          : ""
-      }`}
-    >
-      <p className="font-mono text-[10px] uppercase tracking-[0.3em] text-fg-muted">
+    <div className="flex items-center justify-between gap-4 border-b border-border px-4 py-3 last:border-b-0">
+      <span className={`text-sm ${muted ? "text-fg-muted" : "text-fg"}`}>
         {label}
-      </p>
-      <p
-        className={`mt-3 text-2xl font-semibold tracking-tight md:text-3xl ${
-          muted ? "text-fg-muted" : ""
+      </span>
+      <span
+        className={`text-sm font-bold ${
+          muted ? "text-fg-muted" : bold ? "text-primary" : "text-fg"
         }`}
       >
         {value}
-      </p>
-    </SpotlightCard>
+      </span>
+    </div>
   );
 }
 
 function LedgerLine({ label, value }: { label: string; value: string }) {
   return (
-    <div className="flex items-center justify-between gap-4 border-b border-white/[0.05] px-6 py-4 last:border-b-0 md:px-8">
-      <span className="text-sm text-fg">{label}</span>
-      <span className="font-mono text-base text-fg md:text-lg">{value}</span>
-    </div>
-  );
-}
-
-function Segmented<T extends string>({
-  options,
-  value,
-  onChange,
-}: {
-  options: { value: T; label: string }[];
-  value: T;
-  onChange: (v: T) => void;
-}) {
-  return (
-    <div className="inline-flex rounded-lg border border-white/10 bg-black/30 p-0.5">
-      {options.map((o) => {
-        const active = o.value === value;
-        return (
-          <button
-            key={o.value}
-            type="button"
-            onClick={() => onChange(o.value)}
-            className={`rounded-md px-3 py-1.5 font-mono text-[11px] uppercase tracking-widest transition-all duration-200 ease-expo ${
-              active
-                ? "bg-accent text-white shadow-[0_1px_0_0_rgba(255,255,255,0.15)_inset,0_2px_8px_rgba(94,106,210,0.35)]"
-                : "text-fg-muted hover:text-fg hover:bg-white/[0.06]"
-            }`}
-          >
-            {o.label}
-          </button>
-        );
-      })}
+    <div className="flex items-center justify-between gap-4 border-b border-border px-4 py-2.5 last:border-b-0">
+      <span className="text-xs text-fg-muted">{label}</span>
+      <span className="text-xs font-semibold text-fg">{value}</span>
     </div>
   );
 }
